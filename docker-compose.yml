@@ -8,6 +8,9 @@ services:
     dns:
       - 8.8.8.8
       - 1.1.1.1
+    volumes:
+      - ./state.json:/app/state.json
+      - ./.env:/app/.env
 
   api:
     build:
@@ -18,3 +21,6 @@ services:
       - 1.1.1.1
     ports:
       - "8000:8000"
+    volumes:
+      - ./state.json:/app/state.json
+      - ./.env:/app/.env

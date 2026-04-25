@@ -1,8 +1,6 @@
-import json
-import asyncio
-import logging
 import time
-import websockets
+import logging
+import requests
 from typing import Callable, Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -10,70 +8,65 @@ logger = logging.getLogger(__name__)
 class WalletTracker:
     def __init__(self, state_ref):
         self.state = state_ref
-        self.ws_url = "wss://gamma-api.polymarket.com/ws"
         self.running = False
+        self.last_trade_hashes = {} # Evitar duplicados: wallet -> last_hash
 
-    async def _listen(self, callback: Callable[[Dict[str, Any]], None]):
+    def _fetch_trades(self, wallet: str):
         """
-        Connects to Polymarket WS and listens for trades from target wallets.
+        Consulta los últimos trades de un wallet via Polymarket Data API.
         """
-        while self.running:
-            try:
-                async with websockets.connect(self.ws_url) as websocket:
-                    logger.info(f"Connected to Polymarket WebSocket: {self.ws_url}")
-                    
-                    # Subscribe to all trade events
-                    # Note: Ideally we filter by user at the WS level if supported, 
-                    # but usually we subscribe to a topic and filter locally for speed.
-                    subscribe_msg = {
-                        "type": "subscribe",
-                        "topic": "trades"
-                    }
-                    await websocket.send(json.dumps(subscribe_msg))
-                    
-                    async for message in websocket:
-                        data = json.loads(message)
-                        # The format varies, but usually it's a list or a single event
-                        # We look for trades involving our target_wallets
-                        await self._process_ws_message(data, callback)
-                        
-            except Exception as e:
-                logger.error(f"WebSocket error: {e}. Retrying in 5s...")
-                await asyncio.sleep(5)
-
-    async def _process_ws_message(self, data, callback):
-        """
-        Parses the WS message and filters by our target wallets.
-        """
-        # Polymarket WS structure for trades (simplified example)
-        # { "topic": "trades", "payload": { "proxy": "0x...", "size": "...", "price": "...", "asset": "..." } }
-        if data.get("topic") == "trades":
-            payload = data.get("payload", {})
-            user_wallet = payload.get("proxy") # Polymarket uses proxy wallets for trades
-            
-            if user_wallet in self.state.target_wallets:
-                logger.info(f"⚡ REAL-TIME TRADE DETECTED from {user_wallet}")
-                
-                event = {
-                    "type": "trade",
-                    "wallet": user_wallet,
-                    "market_slug": payload.get("slug", "unknown"),
-                    "token_id": payload.get("asset"),
-                    "side": payload.get("side", "BUY").upper(),
-                    "size": float(payload.get("size", 0)) * float(payload.get("price", 0)), # USDC size
-                    "price": float(payload.get("price", 0)),
-                    "timestamp": time.time(),
-                    "hash": payload.get("transactionHash")
-                }
-                callback(event)
+        url = f"https://data-api.polymarket.com/activity?user={wallet}&limit=5&offset=0&sortBy=TIMESTAMP&sortDirection=DESC"
+        try:
+            resp = requests.get(url, timeout=10)
+            if resp.status_code == 200:
+                return resp.json()
+        except Exception as e:
+            logger.error(f"Error fetching trades for {wallet}: {e}")
+        return []
 
     def stream(self, callback: Callable[[Dict[str, Any]], None]):
         """
-        Starts the asynchronous websocket listener.
+        Loop de alta frecuencia para detectar trades nuevos.
         """
-        logger.info("Starting wallet tracker with WebSockets (Real-time).")
+        logger.info("Starting wallet tracker with High-Frequency Polling.")
         self.running = True
-        # Run the async loop in the current thread (which is a daemon thread in bot/main.py)
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(self._listen(callback))
+        
+        while self.running:
+            for wallet in self.state.target_wallets:
+                trades = self._fetch_trades(wallet)
+                if not trades:
+                    continue
+                
+                # Solo procesamos trades (tipo 'trade')
+                for trade in trades:
+                    if trade.get("type") != "trade":
+                        continue
+                    
+                    trade_hash = trade.get("transactionHash")
+                    
+                    # Si es un trade nuevo para este wallet
+                    if self.last_trade_hashes.get(wallet) != trade_hash:
+                        # Si es la primera vez que vemos este wallet, solo guardamos el hash (no copiamos pasado)
+                        if wallet not in self.last_trade_hashes:
+                            self.last_trade_hashes[wallet] = trade_hash
+                            logger.info(f"Initialized tracking for {wallet}. Last trade: {trade_hash}")
+                            continue
+
+                        self.last_trade_hashes[wallet] = trade_hash
+                        logger.info(f"⚡ NEW TRADE DETECTED from {wallet}")
+
+                        event = {
+                            "type": "trade",
+                            "wallet": wallet,
+                            "market_slug": trade.get("slug", "unknown"),
+                            "token_id": trade.get("asset"),
+                            "side": trade.get("side", "BUY").upper(),
+                            "size": float(trade.get("size", 0)) * float(trade.get("price", 0)),
+                            "price": float(trade.get("price", 0)),
+                            "timestamp": time.time(),
+                            "hash": trade_hash
+                        }
+                        callback(event)
+            
+            # Pausa muy corta para no saturar pero ser rápido (1.5 segundos)
+            time.sleep(1.5)

@@ -43,9 +43,16 @@ class ExecutionEngine:
         shares_to_trade = size / reference_price if reference_price > 0 else 0
 
         if settings.dry_run:
-            logger.info(f"[DRY RUN] Would execute: {side} {shares_to_trade:.2f} shares of {token_id} at limit {limit_price:.3f}")
-            # Mock successfully placed order
-            return {"status": "ok", "price": limit_price, "dry_run": True, "token_id": token_id, "side": side, "size": size}
+            logger.info(f"[DRY RUN] Simulating execution: {side} {shares_to_trade:.2f} shares of {token_id} at limit {limit_price:.3f}")
+            # Mock successfully placed order for simulation purposes
+            return {
+                "status": "success", 
+                "price": limit_price, 
+                "dry_run": True, 
+                "token_id": token_id, 
+                "side": side, 
+                "size": size
+            }
 
         if not self.client:
             logger.error("Client not authenticated, cannot place order.")
