@@ -6,6 +6,8 @@ from services.execution import ExecutionEngine
 from engine.portfolio import Portfolio
 from services.wallet_tracker import WalletTracker
 from services.leaderboard import LeaderboardSniper
+from services.market_resolver import MarketResolver
+from services.notifier import TelegramNotifier
 from core.state import State
 from core.config import settings
 import time
@@ -20,6 +22,9 @@ risk = RiskManager()
 exec_engine = ExecutionEngine(state)
 portfolio = Portfolio()
 tracker = WalletTracker(state)
+notifier = TelegramNotifier()
+# [TEMPORAL: RESOLUCIÓN MANUAL]
+resolver = MarketResolver(state, portfolio, exec_engine)
 
 def handle_trade_event(event):
     """
@@ -42,6 +47,7 @@ def handle_trade_event(event):
 
     if not safe_size:
         logger.warning("Trade rejected by Risk Manager.")
+        notifier.notify_error(f"Trade rejected by Risk Manager for {event.get('wallet')}. Balance: ${state.balance:.2f}")
         return
     
     signal["size_usd"] = safe_size
@@ -59,6 +65,15 @@ def handle_trade_event(event):
         portfolio.apply(signal["token_id"], signal["side"], safe_size, price)
         state.balance = portfolio.balance
         state.positions = portfolio.positions
+        
+        # Notify success
+        notifier.notify_trade(
+            event.get("wallet"), 
+            signal["side"], 
+            signal["market_slug"], 
+            safe_size, 
+            result.get("status", "ok")
+        )
 
     # Ensure we log the trade attempt whether successful or not
     state.add_trade(signal, result)
@@ -87,6 +102,11 @@ def start_bot_loop():
     logger.info("Starting PM CopyTrade Bot Pipeline...")
     t = threading.Thread(target=leaderboard_loop, daemon=True)
     t.start()
+    
+    # [TEMPORAL: RESOLUCIÓN MANUAL]
+    r_thread = threading.Thread(target=resolver.run_loop, daemon=True)
+    r_thread.start()
+    
     tracker.stream(handle_trade_event)
 
 if __name__ == "__main__":

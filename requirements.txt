@@ -1,7 +1,7 @@
 fastapi
 uvicorn
 requests
-websocket-client
+websockets
 py-clob-client
 python-dotenv
 pydantic

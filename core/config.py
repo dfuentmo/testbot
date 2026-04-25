@@ -27,6 +27,10 @@ class Config(BaseModel):
     slippage_tolerance: float = float(os.getenv("SLIPPAGE_TOLERANCE", "0.05"))
     min_trade_size: float = float(os.getenv("MIN_TRADE_SIZE", "10.0"))
     new_only: bool = os.getenv("NEW_ONLY", "true").lower() == "true"
+    
+    # Notifications
+    telegram_token: str = os.getenv("TELEGRAM_TOKEN", "")
+    telegram_chat_id: str = os.getenv("TELEGRAM_CHAT_ID", "")
 
 # Global settings instance
 settings = Config()
