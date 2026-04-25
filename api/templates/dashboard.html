@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polymarket CopyTrade Bot</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .badge {
+            background: var(--surface);
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            border: 1px solid var(--border);
+        }
+
+        .badge.dry-run {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+            border-color: rgba(245, 158, 11, 0.2);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+        }
+
+        .card h3 {
+            margin-top: 0;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+
+        .text-success {
+            color: var(--success);
+        }
+
+        .text-danger {
+            color: var(--danger);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .status-ok {
+            color: var(--success);
+        }
+
+        .status-error {
+            color: var(--danger);
+        }
+
+        .wallet-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .wallet-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem;
+            background: rgba(0, 0, 0, 0.2);
+            margin-bottom: 0.5rem;
+            border-radius: 0.25rem;
+        }
+
+        .btn {
+            padding: 0.25rem 0.75rem;
+            border: none;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+        }
+
+        .wallet-form {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .wallet-form input {
+            flex: 1;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+        }
+    </style>
+    <script>
+        async function addWallet() {
+            const el = document.getElementById('new-wallet');
+            const val = el.value.trim();
+            if (val) {
+                await fetch(`/wallets/${val}`, { method: 'POST' });
+                el.value = '';
+                load();
+            }
+        }
+        async function removeWallet(val) {
+            if (confirm('Remove wallet ' + val + '?')) {
+                await fetch(`/wallets/${val}`, { method: 'DELETE' });
+                load();
+            }
+        }
+
+        async function saveSettings() {
+            const stake = parseFloat(document.getElementById('set-stake').value) / 100.0;
+            const slippage = parseFloat(document.getElementById('set-slippage').value) / 100.0;
+            const autopilot = document.getElementById('set-autopilot').value === "true";
+            const dryrun = document.getElementById('set-dryrun').value === "true";
+            const minTrade = parseFloat(document.getElementById('set-min-trade').value);
+            const newOnly = document.getElementById('set-new-only').value === "true";
+
+            await fetch('/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    stake_percentage: stake,
+                    slippage_tolerance: slippage,
+                    autopilot_enabled: autopilot,
+                    dry_run: dryrun,
+                    min_trade_size: minTrade,
+                    new_only: newOnly
+                })
+            });
+            alert('Settings saved!');
+            load();
+        }
+
+        async function load() {
+            try {
+                const r = await fetch('/status');
+                const d = await r.json();
+
+                // Populate UI from Settings only if not focused (prevent overwriting while user overrides)
+                if (document.activeElement.id !== "set-stake") document.getElementById('set-stake').value = (d.stake_percentage * 100).toFixed(2);
+                if (document.activeElement.id !== "set-slippage") document.getElementById('set-slippage').value = (d.slippage_tolerance * 100).toFixed(2);
+                if (document.activeElement.id !== "set-autopilot") document.getElementById('set-autopilot').value = d.autopilot_enabled ? "true" : "false";
+                if (document.activeElement.id !== "set-dryrun") document.getElementById('set-dryrun').value = d.dry_run ? "true" : "false";
+                if (document.activeElement.id !== "set-min-trade") document.getElementById('set-min-trade').value = d.min_trade_size;
+                if (document.activeElement.id !== "set-new-only") document.getElementById('set-new-only').value = d.new_only ? "true" : "false";
+
+                // Header
+                document.getElementById('stake-pct').innerText = (d.stake_percentage * 100).toFixed(2) + '%';
+
+                let walletsHtml = '';
+                if (d.target_wallets && d.target_wallets.length > 0) {
+                    d.target_wallets.forEach(w => {
+                        walletsHtml += `<li class="wallet-item"><span>${w}</span> <button class="btn btn-danger" onclick="removeWallet('${w}')">X</button></li>`;
+                    });
+                } else {
+                    walletsHtml = '<li style="color:var(--text-muted)">No targets added</li>';
+                }
+                document.getElementById('wallet-list-ul').innerHTML = walletsHtml;
+
+                const dryRunBadge = document.getElementById('dry-run-badge');
+                if (d.dry_run) {
+                    dryRunBadge.style.display = 'inline-block';
+                } else {
+                    dryRunBadge.style.display = 'none';
+                }
+
+                // Stats
+                document.getElementById('balance').innerText = '$' + parseFloat(d.balance).toFixed(2);
+
+                const pnlEl = document.getElementById('pnl');
+                const pnl = parseFloat(d.pnl);
+                pnlEl.innerText = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2);
+                pnlEl.className = 'stat ' + (pnl >= 0 ? 'text-success' : 'text-danger');
+
+                // Positions
+                let posHtml = '';
+                const positions = d.positions || {};
+                if (Object.keys(positions).length === 0) {
+                    posHtml = '<tr><td colspan="2" style="text-align: center; color: var(--text-muted);">No open positions</td></tr>';
+                } else {
+                    for (let tokenId in positions) {
+                        posHtml += `<tr>
+                    <td title="${tokenId}">${tokenId.substring(0, 10)}...</td>
+                    <td>${positions[tokenId].toFixed(2)}</td>
+                </tr>`;
+                    }
+                }
+                document.getElementById('positions-body').innerHTML = posHtml;
+
+                // Recent Trades
+                let tradesHtml = '';
+                const trades = d.recent_trades || [];
+                if (trades.length === 0) {
+                    tradesHtml = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No recent trades</td></tr>';
+                } else {
+                    // Reverse so newest is first
+                    const recent = [...trades].reverse();
+                    for (let t of recent) {
+                        const statusClass = t.status === 'ok' || t.status === 'success' ? 'status-ok' : 'status-error';
+                        tradesHtml += `<tr>
+                    <td>${t.market || 'Unknown'}</td>
+                    <td class="${t.side === 'BUY' ? 'text-success' : 'text-danger'}">${t.side}</td>
+                    <td>$${parseFloat(t.size_usd).toFixed(2)}</td>
+                    <td class="${statusClass}">${t.status || 'unknown'}</td>
+                </tr>`;
+                    }
+                }
+                document.getElementById('trades-body').innerHTML = tradesHtml;
+
+            } catch (e) {
+                console.error('Failed to load status', e);
+            }
+        }
+        setInterval(load, 2000);
+        function showTab(id) {
+            document.getElementById('main-tab').classList.remove('active');
+            document.getElementById('settings-tab').classList.remove('active');
+            document.getElementById(id + '-tab').classList.add('active');
+        }
+    </script>
+</head>
+
+<body onload="load(); showTab('main')">
+    <div class="container">
+        <header style="margin-bottom:1rem;">
+            <div>
+                <h1 style="margin: 0;">Polymarket CopyTrade Bot</h1>
+                <div style="margin-top: 0.5rem; color: var(--text-muted);">
+                    Stake: <span id="stake-pct" style="color: var(--text);"></span>
+                </div>
+            </div>
+            <span id="dry-run-badge" class="badge dry-run">DRY RUN MODE</span>
+        </header>
+
+        <nav
+            style="margin-bottom: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; display: flex; gap: 1rem;">
+            <button onclick="showTab('main')" class="btn" style="background:var(--accent);">Dashboard</button>
+            <button onclick="showTab('settings')" class="btn" style="background:#555;">Settings Config</button>
+        </nav>
+
+        <!-- MAIN TAB -->
+        <div id="main-tab" class="tab-content active">
+
+            <div class="grid">
+                <div class="card">
+                    <h3>Current Balance</h3>
+                    <div id="balance" class="stat">$0.00</div>
+                    <h3 style="margin-top: 1rem">Total PnL</h3>
+                    <div id="pnl" class="stat">$0.00</div>
+                </div>
+                <div class="card">
+                    <h3>Target Wallets</h3>
+                    <ul id="wallet-list-ul" class="wallet-list"></ul>
+                    <div class="wallet-form">
+                        <input type="text" id="new-wallet" placeholder="0x...">
+                        <button class="btn" onclick="addWallet()">Add</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <h3>Open Positions</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Token ID</th>
+                                <th>Shares</th>
+                            </tr>
+                        </thead>
+                        <tbody id="positions-body">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card" style="grid-column: span 2;">
+                    <h3>Recent Trades</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Market Slug</th>
+                                <th>Side</th>
+                                <th>Size (USD)</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trades-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- SETTINGS TAB -->
+        <div id="settings-tab" class="tab-content">
+            <div class="card" style="max-width: 600px; margin: 0 auto; display:flex; flex-direction:column; gap: 1rem;">
+                <h3>Bot Parameters</h3>
+                <div class="settings-form" style="display:flex; flex-direction:column; gap:0.5rem;">
+                    <label>Stake Percentage (%)</label>
+                    <input type="number" id="set-stake" step="0.1" value="1.0">
+                </div>
+                <div class="settings-form" style="display:flex; flex-direction:column; gap:0.5rem;">
+                    <label>Slippage Tolerance (%)</label>
+                    <input type="number" id="set-slippage" step="0.1" value="5.0">
+                </div>
+                <div class="settings-form" style="display:flex; flex-direction:column; gap:0.5rem;">
+                    <label>Leaderboard Autopilot</label>
+                    <select id="set-autopilot"
+                        style="padding:0.5rem; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:0.25rem;">
+                        <option value="true">Enabled (Auto-snipe)</option>
+                        <option value="false">Disabled (Manual)</option>
+                    </select>
+                </div>
+                <div class="settings-form" style="display:flex; flex-direction:column; gap:0.5rem;">
+                    <label>Dry-Run Mode</label>
+                    <select id="set-dryrun"
+                        style="padding:0.5rem; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:0.25rem;">
+                        <option value="true">Enabled (Testing)</option>
+                        <option value="false">Disabled (Real Money)</option>
+                    </select>
+                </div>
+                <div class="settings-form" style="display:flex; flex-direction:column; gap:0.5rem;">
+                    <label>Min Trade Size ($)</label>
+                    <input type="number" id="set-min-trade" step="1" value="10">
+                </div>
+                <div class="settings-form" style="display:flex; flex-direction:column; gap:0.5rem;">
+                    <label>Copy Only New Positions</label>
+                    <select id="set-new-only"
+                        style="padding:0.5rem; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:0.25rem;">
+                        <option value="true">Yes (Safety First)</option>
+                        <option value="false">No (Copy History)</option>
+                    </select>
+                </div>
+                <button class="btn" style="margin-top: 1rem;" onclick="saveSettings()">Save Configuration</button>
+            </div>
+        </div>
+
+    </div>
+</body>
+
+</html>

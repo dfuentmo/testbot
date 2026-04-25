@@ -1,0 +1,30 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Local state and data
+state.json
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+.env/
+build/
+dist/
+*.egg-info/
+
+# Docker
+.docker/
+
+# IDEs
+.vscode/
+.idea/
+
+# Temp reference (external code review)
+tmp_ref/

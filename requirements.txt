@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+requests
+websocket-client
+py-clob-client
+python-dotenv
+pydantic
