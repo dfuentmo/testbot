@@ -33,6 +33,8 @@ def status():
         "pnl": state.pnl,
         "positions": state.positions,
         "recent_trades": state.trades[-10:], # Return last 10 trades
+        "balance_history": state.balance_history,
+        "deposits": state.deposits,
         "target_wallets": state.target_wallets,
         "stake_percentage": state.stake_percentage,
         "slippage_tolerance": state.slippage_tolerance,
@@ -41,8 +43,19 @@ def status():
         "min_trade_size": state.min_trade_size,
         "new_only": state.new_only,
         "min_price": state.min_price,
-        "max_price": state.max_price
+        "max_price": state.max_price,
+        "min_balance_circuit_breaker": state.min_balance_circuit_breaker
     }
+
+class DepositRequest(BaseModel):
+    amount: float
+
+@app.post("/deposit")
+def make_deposit(req: DepositRequest):
+    if req.amount > 0:
+        state.deposit(req.amount)
+        return {"status": "ok", "new_balance": state.balance}
+    return {"status": "error", "message": "Amount must be positive"}
 
 class SettingsUpdate(BaseModel):
     stake_percentage: float = None
@@ -53,6 +66,7 @@ class SettingsUpdate(BaseModel):
     new_only: bool = None
     min_price: float = None
     max_price: float = None
+    min_balance_circuit_breaker: float = None
 
 @app.post("/settings")
 def update_settings(updates: SettingsUpdate):
@@ -72,6 +86,8 @@ def update_settings(updates: SettingsUpdate):
         state.min_price = updates.min_price
     if updates.max_price is not None:
         state.max_price = updates.max_price
+    if updates.min_balance_circuit_breaker is not None:
+        state.min_balance_circuit_breaker = updates.min_balance_circuit_breaker
     
     state.save()
     return {"status": "ok"}

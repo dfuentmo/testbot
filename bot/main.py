@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 # Global instances (also used by the API)
 state = State()
 strategy = Strategy(state)
-risk = RiskManager()
+risk = RiskManager(state)
 exec_engine = ExecutionEngine(state)
 portfolio = Portfolio()
 tracker = WalletTracker(state, client=exec_engine.client)
@@ -63,7 +63,7 @@ def handle_trade_event(event):
         # 4. State Management: update local portfolio and history
         price = result.get("price", 0.5) # Fallback price if not resolved immediately
         portfolio.apply(signal["token_id"], signal["side"], safe_size, price)
-        state.balance = portfolio.balance
+        state.update_balance(portfolio.balance)
         state.positions = portfolio.positions
         
         # Notify success
@@ -99,8 +99,12 @@ def leaderboard_loop():
         time.sleep(3600) # every hour
 
 def start_bot_loop():
+    # Start the market resolver in a background thread
+    resolver_thread = threading.Thread(target=resolver.run_loop, daemon=True)
+    resolver_thread.start()
+    logger.info("Market Resolver background thread started.")
+
     # Run tracker in the main thread (it's a blocking loop)
-    # but ensure no other thread is blocking it.
     tracker.stream(handle_trade_event)
 
 if __name__ == "__main__":

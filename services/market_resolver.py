@@ -1,5 +1,6 @@
 import logging
 import time
+import requests
 from core.state import State
 from engine.portfolio import Portfolio
 
@@ -7,9 +8,7 @@ logger = logging.getLogger(__name__)
 
 class MarketResolver:
     """
-    [TEMPORAL: RESOLUCIÓN MANUAL]
-    Este servicio simula la resolución de mercados revisando si el precio de una posición
-    ha llegado a 1 (ganancia total) o 0 (pérdida total).
+    Service to monitor open positions and settle them when the market resolves.
     """
     def __init__(self, state: State, portfolio: Portfolio, execution_engine):
         self.state = state
@@ -18,43 +17,69 @@ class MarketResolver:
 
     def check_resolutions(self):
         """
-        Revisa las posiciones actuales y simula el cobro si el mercado ha terminado.
+        Iterates through open positions and checks if they have resolved on Polymarket.
         """
         if not self.state.positions:
             return
 
-        logger.info("[TEMPORAL] Revisando resoluciones de mercados abiertos...")
+        logger.info(f"Checking resolutions for {len(self.state.positions)} open positions...")
         
-        # Iteramos sobre una copia para poder modificar el original
-        positions_to_check = list(self.state.positions.keys())
+        # Work on a copy of keys
+        token_ids = list(self.state.positions.keys())
         
-        for token_id in positions_to_check:
+        for token_id in token_ids:
             try:
-                # Intentamos obtener el precio actual del mercado via ClobClient o Data API
-                # Para esta versión temporal, usaremos el motor de ejecución para "preguntar" el precio
-                # Si el precio es >= 0.99 lo consideramos ganador (1.0)
-                # Si el precio es <= 0.01 lo consideramos perdedor (0.0)
+                # Use the Data API to get market status for the token
+                # The endpoint https://clob.polymarket.com/markets/<token_id> returns market details
+                url = f"https://clob.polymarket.com/markets/{token_id}"
+                resp = requests.get(url, timeout=10)
                 
-                # Nota: En una implementación real, aquí consultaríamos el estado del mercado en Polymarket
-                # Por ahora, si no hay actividad o el mercado desaparece, podríamos tener problemas.
-                # Esta es una lógica de simulación básica.
+                if resp.status_code != 200:
+                    logger.warning(f"Could not fetch market info for {token_id}: {resp.status_code}")
+                    continue
+                    
+                market_data = resp.json()
                 
-                shares = self.state.positions[token_id]
+                # Check if the market is closed/resolved
+                # Polymarket CLOB API marks resolved markets with price 1 or 0 or 'closed': true
                 
-                # Simulamos consulta de precio (esto es simplificado)
-                # En Polymarket, cuando un mercado resuelve, el token vale 1 o 0.
+                # Let's check the orderbook price as a proxy for resolution
+                # If the market is resolved, the price will be exactly 1.0 or 0.0
                 
-                # TODO: Implementar consulta real de precio de mercado para resolución
-                # Por ahora dejamos el esqueleto listo para cuando detectemos el fin del mercado.
-                pass
+                # We can also check if the market is 'active'
+                if not market_data.get("active", True):
+                    logger.info(f"Market for {token_id} is inactive. Checking resolution...")
+                    
+                # Robust check: Get current price
+                # If we are in dry run or real mode, we can use the execution engine client
+                price = 0.5
+                if self.execution_engine and self.execution_engine.client:
+                    try:
+                        # Get mid price or last trade price
+                        price_resp = self.execution_engine.client.get_midpoint(token_id)
+                        price = float(price_resp.get("mid", 0.5))
+                    except:
+                        # Fallback: check if it's resolved via Data API directly if possible
+                        pass
+
+                # If price is at extremes, it's likely resolved
+                if price >= 0.995:
+                    logger.info(f"🏆 Position {token_id} WON! (Price: {price})")
+                    self.state.settle_position(token_id, 1.0, market_data.get("description", "Unknown"))
+                elif price <= 0.005:
+                    logger.info(f"💀 Position {token_id} LOST. (Price: {price})")
+                    self.state.settle_position(token_id, 0.0, market_data.get("description", "Unknown"))
+                else:
+                    logger.debug(f"Position {token_id} still active at {price}")
 
             except Exception as e:
-                logger.error(f"Error revisando resolución para {token_id}: {e}")
+                logger.error(f"Error resolving {token_id}: {e}")
 
     def run_loop(self):
+        logger.info("Market Resolver loop started.")
         while True:
             try:
                 self.check_resolutions()
             except Exception as e:
-                logger.error(f"Error en el loop de resolución: {e}")
-            time.sleep(300) # Revisar cada 5 minutos
+                logger.error(f"Error in resolver loop: {e}")
+            time.sleep(300) # Check every 5 minutes
