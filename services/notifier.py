@@ -9,8 +9,9 @@ class TelegramNotifier:
         self.token = settings.telegram_token
         self.chat_id = settings.telegram_chat_id
         self.enabled = bool(self.token and self.chat_id)
+        logger.info(f"Telegram Service Initializing... Enabled: {self.enabled} (ID: {self.chat_id})")
         if not self.enabled:
-            logger.warning("Telegram notifications disabled: Token or Chat ID missing.")
+            logger.warning(f"Telegram notifications disabled: Token? {bool(self.token)} | Chat ID? {bool(self.chat_id)}")
 
     def send_message(self, text: str):
         if not self.enabled:
@@ -23,8 +24,9 @@ class TelegramNotifier:
                 "text": text,
                 "parse_mode": "HTML"
             }, timeout=10)
+            logger.info(f"Telegram Post Status: {resp.status_code}")
             if resp.status_code != 200:
-                logger.error(f"Failed to send Telegram message: {resp.text}")
+                logger.error(f"Failed to send Telegram message. Response: {resp.text}")
         except Exception as e:
             logger.error(f"Error sending Telegram notification: {e}")
 
