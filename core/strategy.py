@@ -1,4 +1,5 @@
 import logging
+import time
 from core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -9,7 +10,9 @@ class Strategy:
 
     def process_trade_event(self, event):
         """
-        Versión simplificada y agresiva. Copia todo lo que sea un trade.
+        Copia trades de ballenas con filtros de riesgo y temporalidad.
+        Para mercados de clima (hondacivic), ignora trades viejos (>5 min) 
+        para evitar precios "viciados" con liquidez desaparecida.
         """
         wallet = event.get("wallet")
         if wallet not in self.state.target_wallets:
@@ -26,10 +29,20 @@ class Strategy:
         if whale_size < 1.0:
             return None
 
+        # Validación temporal: rechazar trades muy viejos (>5 minutos)
+        # Importante para mercados diarios de clima donde la liquidez se evapora
+        event_timestamp = event.get("timestamp", time.time())
+        current_time = time.time()
+        trade_age_seconds = current_time - event_timestamp
+        
+        if trade_age_seconds > 300:  # 5 minutos = 300 segundos
+            logger.warning(f"[STRATEGY] Rejecting stale trade - age: {trade_age_seconds:.0f}s > 300s (liquidity likely gone)")
+            return None
+
         # Copia proporcional
         our_size = whale_size * self.state.stake_percentage
 
-        logger.info(f"⚡ [STRATEGY] Copying trade from {wallet}: {side} {token_id} (Our size: ${our_size:.2f})")
+        logger.info(f"⚡ [STRATEGY] Copying trade from {wallet}: {side} {token_id} (Our size: ${our_size:.2f}, trade age: {trade_age_seconds:.0f}s)")
 
         return {
             "token_id": token_id,

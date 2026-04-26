@@ -15,16 +15,17 @@ app = FastAPI(title="Polymarket CopyTrade Bot Dashboard")
 # Strategy presets - define different strategies with predefined settings
 STRATEGY_PRESETS = {
     "hondacivic": {
-        "stake_percentage": 0.002,  # 0.2% stake
-        "slippage_tolerance": 0.02,  # 2% slippage
-        "autopilot_enabled": True,
+        "stake_percentage": 0.002,  # 0.2% stake (con $1500 entrada promedio = ~$3 nuestro)
+        "slippage_tolerance": 0.01,  # 1% slippage INTRANSIGENTE para clima volátil
+        "autopilot_enabled": False,
         "dry_run": True,
-        "min_trade_size": 1.0,
+        "min_trade_size": 1.0,  # Rechazar trades < $1 USDC
         "new_only": True,
-        "min_price": 0.01,
-        "max_price": 0.99,
-        "min_balance_circuit_breaker": 10.0,
-        "max_spend_per_trade": 100.0
+        "min_price": 0.15,  # Evitar apuestas "basura" - protege capital
+        "max_price": 0.80,  # "Recoger monedas frente a apisonadora" riesgo muy alto arriba de 0.80
+        "min_balance_circuit_breaker": 5.0,  # Parar si balance < $5
+        "max_spend_per_trade": 5.0,  # MÁXIMO $5 por operación
+        "max_open_positions": 8  # Máximo 8 posiciones simultáneas para evitar bloqueo
     },
     "conservative": {
         "stake_percentage": 0.01,  # 1% stake
@@ -36,7 +37,8 @@ STRATEGY_PRESETS = {
         "min_price": 0.1,
         "max_price": 0.9,
         "min_balance_circuit_breaker": 50.0,
-        "max_spend_per_trade": 50.0
+        "max_spend_per_trade": 50.0,
+        "max_open_positions": 5
     },
     "aggressive": {
         "stake_percentage": 0.10,  # 10% stake
@@ -48,7 +50,8 @@ STRATEGY_PRESETS = {
         "min_price": 0.01,
         "max_price": 0.99,
         "min_balance_circuit_breaker": 5.0,
-        "max_spend_per_trade": 200.0
+        "max_spend_per_trade": 200.0,
+        "max_open_positions": 15
     }
 }
 
@@ -185,6 +188,10 @@ def apply_strategy(strategy_name: str):
     state.max_price = strategy["max_price"]
     state.min_balance_circuit_breaker = strategy["min_balance_circuit_breaker"]
     state.max_spend_per_trade = strategy["max_spend_per_trade"]
+    
+    # Apply max_open_positions if defined in strategy
+    if "max_open_positions" in strategy:
+        state.max_open_positions = strategy["max_open_positions"]
     
     # Save the new configuration to state.json
     state.save()

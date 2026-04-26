@@ -28,6 +28,7 @@ class State:
         self.max_price = 0.95
         self.min_balance_circuit_breaker = settings.min_balance_circuit_breaker
         self.max_spend_per_trade = settings.max_spend_per_trade
+        self.max_open_positions = 10  # Default limit
         
         self.load()
         
@@ -58,6 +59,7 @@ class State:
                     self.max_price = data.get("max_price", 0.95)
                     self.min_balance_circuit_breaker = data.get("min_balance_circuit_breaker", self.min_balance_circuit_breaker)
                     self.max_spend_per_trade = data.get("max_spend_per_trade", self.max_spend_per_trade)
+                    self.max_open_positions = data.get("max_open_positions", 10)
                 logger.info("Local state loaded successfully.")
             except Exception as e:
                 logger.error(f"Error loading state: {e}")
@@ -82,7 +84,8 @@ class State:
                     "min_price": self.min_price,
                     "max_price": self.max_price,
                     "min_balance_circuit_breaker": self.min_balance_circuit_breaker,
-                    "max_spend_per_trade": self.max_spend_per_trade
+                    "max_spend_per_trade": self.max_spend_per_trade,
+                    "max_open_positions": self.max_open_positions
                 }, f, indent=4)
         except Exception as e:
             logger.error(f"Error saving state: {e}")
