@@ -69,9 +69,9 @@ class State:
                     "balance": self.balance,
                     "pnl": self.pnl,
                     "positions": self.positions,
-                    "trades": self.trades[-100:], # Keep last 100
-                    "balance_history": self.balance_history[-200:], 
-                    "deposits": self.deposits[-50:], # Keep last 50 deposits
+                    "trades": self.trades[-1000:], # Keep last 1000
+                    "balance_history": self.balance_history[-500:], 
+                    "deposits": self.deposits[-100:], # Keep last 100 deposits
                     "target_wallets": self.target_wallets,
                     "stake_percentage": self.stake_percentage,
                     "slippage_tolerance": self.slippage_tolerance,
@@ -142,3 +142,15 @@ class State:
             self.balance = new_balance
             self.record_balance()
             self.save()
+
+    def reset(self, initial_balance=1000.0):
+        """Resets the state to a clean slate."""
+        self.balance = initial_balance
+        self.pnl = 0.0
+        self.positions = {}
+        self.trades = []
+        self.balance_history = []
+        self.deposits = []
+        self.record_balance()
+        self.save()
+        logger.info(f"State reset to {initial_balance}.")

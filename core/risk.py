@@ -19,6 +19,13 @@ class RiskManager:
         size_usd = signal.get("size_usd", 0.0)
         side = signal.get("side", "BUY")
         token_id = signal.get("token_id")
+        price = signal.get("price", 0.5)
+
+        # 0. Price Range validation
+        if side in ["BUY", "BUYS"]:
+            if price < self.state.min_price or price > self.state.max_price:
+                logger.warning(f"[RISK] Rejected trade - Price {price:.2f} outside bounds ({self.state.min_price}-{self.state.max_price})")
+                return None
 
         if side in ["BUY", "BUYS"]:
             # 1. Circuit Breaker (using dynamic state)
@@ -40,8 +47,10 @@ class RiskManager:
                 logger.warning(f"[RISK] Rejected SELL for {token_id} - Position not owned in local portfolio.")
                 return None
             
-        # 3. Final validation
-        if size_usd <= 0:
+        # 3. Min Trade Size validation
+        min_size = self.state.min_trade_size
+        if size_usd < min_size:
+            logger.warning(f"[RISK] Rejected trade - Size ${size_usd:.2f} is below minimum ${min_size:.2f}")
             return None
 
         return size_usd

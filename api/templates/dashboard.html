@@ -210,6 +210,21 @@
             }
         }
 
+        async function resetSystem() {
+            if (confirm('WARNING: This will clear all trades, positions, and history. Are you sure?')) {
+                const amt = parseFloat(prompt("Enter initial balance ($):", "50"));
+                const r = await fetch('/reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount: isNaN(amt) ? 50.0 : amt })
+                });
+                if (r.ok) {
+                    alert('System reset successfully.');
+                    load();
+                }
+            }
+        }
+
         async function addWallet() {
             const el = document.getElementById('new-wallet');
             const val = el.value.trim();
@@ -459,7 +474,10 @@
                             <h3>Current Balance</h3>
                             <div id="balance" class="stat">$0.00</div>
                         </div>
-                        <button class="btn" onclick="makeDeposit()" style="margin-top: 0.5rem;">+ Deposit</button>
+                        <div style="display:flex; flex-direction:column; gap:0.5rem; margin-top:0.5rem;">
+                            <button class="btn" onclick="makeDeposit()">+ Deposit</button>
+                            <button class="btn btn-danger" onclick="resetSystem()" style="font-size:0.75rem;">Reset System</button>
+                        </div>
                     </div>
                     <h3 style="margin-top: 1rem">Total PnL</h3>
                     <div id="pnl" class="stat">$0.00</div>

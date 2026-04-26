@@ -36,5 +36,6 @@ class Strategy:
             "side": side,
             "size_usd": our_size,
             "whale_size": whale_size,
+            "price": event.get("price", 0.5),
             "market_slug": event.get("market_slug", "unknown")
         }

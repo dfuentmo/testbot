@@ -110,6 +110,17 @@ def remove_wallet(address: str):
         state.save()
     return {"status": "ok", "wallets": state.target_wallets}
 
+@app.post("/reset")
+def reset_state(req: DepositRequest = None):
+    initial_amount = req.amount if req and req.amount > 0 else 50.0
+    state.reset(initial_amount)
+    
+    # Synchronize portfolio
+    portfolio.balance = initial_amount
+    portfolio.positions = {}
+    
+    return {"status": "ok", "message": f"System reset to ${initial_amount}"}
+
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard():
     with open("api/templates/dashboard.html", "r") as f:
