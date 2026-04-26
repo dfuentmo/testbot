@@ -27,10 +27,8 @@ class RiskManager:
                 logger.error(f"[RISK] CIRCUIT BREAKER TRIGGERED: Balance {current_balance:.2f} < {limit:.2f}. Halting.")
                 return None
 
-            # 2. Hard constraint on Max Spend
-            # We still use settings for max_spend as it's a safety constant
-            from core.config import settings
-            max_spend = settings.max_spend_per_trade
+            # 2. Hard constraint on Max Spend (using dynamic state)
+            max_spend = self.state.max_spend_per_trade
             if size_usd > max_spend:
                 logger.warning(f"[RISK] Clipping size ${size_usd:.2f} to max spend ${max_spend:.2f}")
                 size_usd = max_spend

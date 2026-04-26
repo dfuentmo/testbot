@@ -235,6 +235,7 @@
             const minPrice = parseFloat(document.getElementById('set-min-price').value);
             const maxPrice = parseFloat(document.getElementById('set-max-price').value);
             const circuitBreaker = parseFloat(document.getElementById('set-circuit-breaker').value);
+            const maxSpend = parseFloat(document.getElementById('set-max-spend').value);
 
             await fetch('/settings', {
                 method: 'POST',
@@ -248,7 +249,8 @@
                     new_only: newOnly,
                     min_price: minPrice,
                     max_price: maxPrice,
-                    min_balance_circuit_breaker: circuitBreaker
+                    min_balance_circuit_breaker: circuitBreaker,
+                    max_spend_per_trade: maxSpend
                 })
             });
             alert('Settings saved!');
@@ -270,6 +272,7 @@
                 if (document.activeElement.id !== "set-min-price") document.getElementById('set-min-price').value = d.min_price;
                 if (document.activeElement.id !== "set-max-price") document.getElementById('set-max-price').value = d.max_price;
                 if (document.activeElement.id !== "set-circuit-breaker") document.getElementById('set-circuit-breaker').value = d.min_balance_circuit_breaker;
+                if (document.activeElement.id !== "set-max-spend") document.getElementById('set-max-spend').value = d.max_spend_per_trade;
 
                 // Header
                 document.getElementById('stake-pct').innerText = (d.stake_percentage * 100).toFixed(2) + '%';
@@ -571,6 +574,11 @@
                     <label>Min Balance Circuit Breaker ($)</label>
                     <input type="number" id="set-circuit-breaker" step="1" value="5">
                     <small style="color: var(--text-muted)">The bot will stop trading if balance falls below this.</small>
+                </div>
+                <div class="settings-form" style="display:flex; flex-direction:column; gap:0.5rem;">
+                    <label>Max Spend per Trade ($)</label>
+                    <input type="number" id="set-max-spend" step="1" value="50">
+                    <small style="color: var(--text-muted)">Maximum amount to spend in a single trade.</small>
                 </div>
                 <button class="btn" style="margin-top: 1rem;" onclick="saveSettings()">Save Configuration</button>
             </div>

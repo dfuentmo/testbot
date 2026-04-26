@@ -44,7 +44,8 @@ def status():
         "new_only": state.new_only,
         "min_price": state.min_price,
         "max_price": state.max_price,
-        "min_balance_circuit_breaker": state.min_balance_circuit_breaker
+        "min_balance_circuit_breaker": state.min_balance_circuit_breaker,
+        "max_spend_per_trade": state.max_spend_per_trade
     }
 
 class DepositRequest(BaseModel):
@@ -67,6 +68,7 @@ class SettingsUpdate(BaseModel):
     min_price: float = None
     max_price: float = None
     min_balance_circuit_breaker: float = None
+    max_spend_per_trade: float = None
 
 @app.post("/settings")
 def update_settings(updates: SettingsUpdate):
@@ -88,6 +90,8 @@ def update_settings(updates: SettingsUpdate):
         state.max_price = updates.max_price
     if updates.min_balance_circuit_breaker is not None:
         state.min_balance_circuit_breaker = updates.min_balance_circuit_breaker
+    if updates.max_spend_per_trade is not None:
+        state.max_spend_per_trade = updates.max_spend_per_trade
     
     state.save()
     return {"status": "ok"}
