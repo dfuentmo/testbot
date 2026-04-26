@@ -39,6 +39,12 @@ class RiskManager:
             if size_usd > max_spend:
                 logger.warning(f"[RISK] Clipping size ${size_usd:.2f} to max spend ${max_spend:.2f}")
                 size_usd = max_spend
+
+            # 3. Max Open Positions (Avoid capital blockage)
+            max_pos = getattr(self.state, "max_open_positions", 10)
+            if len(positions) >= max_pos:
+                logger.warning(f"[RISK] Rejected trade - Max open positions reached ({len(positions)}/{max_pos})")
+                return None
         else:
             # It's a SELL
             # Make sure we own the position

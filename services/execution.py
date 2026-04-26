@@ -43,7 +43,7 @@ class ExecutionEngine:
         shares_to_trade = size / reference_price if reference_price > 0 else 0
 
         if settings.dry_run:
-            logger.info(f"[DRY RUN] Simulating execution: {side} {shares_to_trade:.2f} shares of {token_id} at limit {limit_price:.3f}")
+            logger.info(f"[DRY RUN] Simulating execution (FOK): {side} {shares_to_trade:.2f} shares of {token_id} at limit {limit_price:.3f}")
             # Mock successfully placed order for simulation purposes
             return {
                 "status": "success", 
@@ -68,8 +68,8 @@ class ExecutionEngine:
                 token_id=token_id
             )
             signed_order = self.client.create_order(oa)
-            response = self.client.post_order(signed_order)
-            logger.info(f"Order executed: {response}")
+            response = self.client.post_order(signed_order, orderType=OrderType.FOK)
+            logger.info(f"Order executed (FOK): {response}")
             return response
         except Exception as e:
             logger.error(f"Order failed: {e}")

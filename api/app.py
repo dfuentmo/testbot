@@ -12,6 +12,46 @@ from bot.main import state, portfolio, tracker, start_bot_loop
 
 app = FastAPI(title="Polymarket CopyTrade Bot Dashboard")
 
+# Strategy presets - define different strategies with predefined settings
+STRATEGY_PRESETS = {
+    "hondacivic": {
+        "stake_percentage": 0.002,  # 0.2% stake
+        "slippage_tolerance": 0.02,  # 2% slippage
+        "autopilot_enabled": True,
+        "dry_run": True,
+        "min_trade_size": 1.0,
+        "new_only": True,
+        "min_price": 0.01,
+        "max_price": 0.99,
+        "min_balance_circuit_breaker": 10.0,
+        "max_spend_per_trade": 100.0
+    },
+    "conservative": {
+        "stake_percentage": 0.01,  # 1% stake
+        "slippage_tolerance": 0.05,  # 5% slippage
+        "autopilot_enabled": False,
+        "dry_run": True,
+        "min_trade_size": 50.0,
+        "new_only": True,
+        "min_price": 0.1,
+        "max_price": 0.9,
+        "min_balance_circuit_breaker": 50.0,
+        "max_spend_per_trade": 50.0
+    },
+    "aggressive": {
+        "stake_percentage": 0.10,  # 10% stake
+        "slippage_tolerance": 0.02,  # 2% slippage
+        "autopilot_enabled": True,
+        "dry_run": False,
+        "min_trade_size": 1.0,
+        "new_only": False,
+        "min_price": 0.01,
+        "max_price": 0.99,
+        "min_balance_circuit_breaker": 5.0,
+        "max_spend_per_trade": 200.0
+    }
+}
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -120,6 +160,40 @@ def reset_state(req: DepositRequest = None):
     portfolio.positions = {}
     
     return {"status": "ok", "message": f"System reset to ${initial_amount}"}
+
+@app.post("/strategy/apply/{strategy_name}")
+def apply_strategy(strategy_name: str):
+    """Apply a predefined strategy preset to the current state."""
+    strategy_name_lower = strategy_name.lower()
+    
+    if strategy_name_lower not in STRATEGY_PRESETS:
+        return {
+            "status": "error",
+            "message": f"Strategy '{strategy_name}' not found. Available: {list(STRATEGY_PRESETS.keys())}"
+        }
+    
+    strategy = STRATEGY_PRESETS[strategy_name_lower]
+    
+    # Apply all settings from the strategy preset
+    state.stake_percentage = strategy["stake_percentage"]
+    state.slippage_tolerance = strategy["slippage_tolerance"]
+    state.autopilot_enabled = strategy["autopilot_enabled"]
+    state.dry_run = strategy["dry_run"]
+    state.min_trade_size = strategy["min_trade_size"]
+    state.new_only = strategy["new_only"]
+    state.min_price = strategy["min_price"]
+    state.max_price = strategy["max_price"]
+    state.min_balance_circuit_breaker = strategy["min_balance_circuit_breaker"]
+    state.max_spend_per_trade = strategy["max_spend_per_trade"]
+    
+    # Save the new configuration to state.json
+    state.save()
+    
+    return {
+        "status": "ok",
+        "message": f"Strategy '{strategy_name}' applied successfully",
+        "strategy": strategy
+    }
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard():
