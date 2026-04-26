@@ -99,12 +99,11 @@ def leaderboard_loop():
         time.sleep(3600) # every hour
 
 def start_bot_loop():
-    # Notify Telegram about startup
-    notifier.send_message("🤖 <b>Polymarket CopyTrade Bot Online</b>\nEl sistema de vigilancia de ballenas está activo.")
-    
     # Run tracker in the main thread (it's a blocking loop)
     # but ensure no other thread is blocking it.
     tracker.stream(handle_trade_event)
 
 if __name__ == "__main__":
+    # Notify Telegram about startup (only from the bot container)
+    notifier.send_message("🤖 <b>Polymarket CopyTrade Bot Online</b>\nEl sistema de vigilancia de ballenas está activo.")
     start_bot_loop()
