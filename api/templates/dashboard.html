@@ -188,6 +188,8 @@
             const dryrun = document.getElementById('set-dryrun').value === "true";
             const minTrade = parseFloat(document.getElementById('set-min-trade').value);
             const newOnly = document.getElementById('set-new-only').value === "true";
+            const minPrice = parseFloat(document.getElementById('set-min-price').value);
+            const maxPrice = parseFloat(document.getElementById('set-max-price').value);
 
             await fetch('/settings', {
                 method: 'POST',
@@ -198,7 +200,9 @@
                     autopilot_enabled: autopilot,
                     dry_run: dryrun,
                     min_trade_size: minTrade,
-                    new_only: newOnly
+                    new_only: newOnly,
+                    min_price: minPrice,
+                    max_price: maxPrice
                 })
             });
             alert('Settings saved!');
@@ -217,6 +221,8 @@
                 if (document.activeElement.id !== "set-dryrun") document.getElementById('set-dryrun').value = d.dry_run ? "true" : "false";
                 if (document.activeElement.id !== "set-min-trade") document.getElementById('set-min-trade').value = d.min_trade_size;
                 if (document.activeElement.id !== "set-new-only") document.getElementById('set-new-only').value = d.new_only ? "true" : "false";
+                if (document.activeElement.id !== "set-min-price") document.getElementById('set-min-price').value = d.min_price;
+                if (document.activeElement.id !== "set-max-price") document.getElementById('set-max-price').value = d.max_price;
 
                 // Header
                 document.getElementById('stake-pct').innerText = (d.stake_percentage * 100).toFixed(2) + '%';
@@ -404,6 +410,14 @@
                         <option value="true">Yes (Safety First)</option>
                         <option value="false">No (Copy History)</option>
                     </select>
+                </div>
+                <div class="settings-form" style="display:flex; flex-direction:column; gap:0.5rem;">
+                    <label>Min Price (0.01-0.99)</label>
+                    <input type="number" id="set-min-price" step="0.01" value="0.05">
+                </div>
+                <div class="settings-form" style="display:flex; flex-direction:column; gap:0.5rem;">
+                    <label>Max Price (0.01-0.99)</label>
+                    <input type="number" id="set-max-price" step="0.01" value="0.95">
                 </div>
                 <button class="btn" style="margin-top: 1rem;" onclick="saveSettings()">Save Configuration</button>
             </div>

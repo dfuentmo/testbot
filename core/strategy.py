@@ -32,6 +32,21 @@ class Strategy:
             logger.info(f"[STRATEGY] Ignoring trade of ${whale_size:.2f} (below minimum ${self.state.min_trade_size:.2f})")
             return None
 
+        # OctoBot Feature: Price Range Filter
+        price = event.get("price", 0.5)
+        min_p = getattr(self.state, 'min_price', 0.05)
+        max_p = getattr(self.state, 'max_price', 0.95)
+        if price < min_p or price > max_p:
+            logger.info(f"[STRATEGY] Ignoring trade at price {price} (outside range {min_p}-{max_p})")
+            return None
+
+        # OctoBot Feature: New Position Only check
+        if self.state.new_only and side == "BUY":
+            market_slug = event.get("market_slug")
+            if market_slug in self.state.positions:
+                 logger.info(f"[STRATEGY] Ignoring BUY for {market_slug} - Position already exists and 'New Only' is active.")
+                 return None
+
         # Calculate our copy size proportionally
         our_size = whale_size * self.state.stake_percentage
 

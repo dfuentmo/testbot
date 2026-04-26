@@ -21,7 +21,7 @@ strategy = Strategy(state)
 risk = RiskManager()
 exec_engine = ExecutionEngine(state)
 portfolio = Portfolio()
-tracker = WalletTracker(state)
+tracker = WalletTracker(state, client=exec_engine.client)
 notifier = TelegramNotifier()
 # [TEMPORAL: RESOLUCIÓN MANUAL]
 resolver = MarketResolver(state, portfolio, exec_engine)

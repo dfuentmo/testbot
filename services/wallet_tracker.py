@@ -1,20 +1,19 @@
 import time
 import logging
 import requests
+import json
 from typing import Callable, Dict, Any
 
 logger = logging.getLogger(__name__)
 
 class WalletTracker:
-    def __init__(self, state_ref):
+    def __init__(self, state_ref, client=None):
         self.state = state_ref
+        self.client = client
         self.running = False
-        self.last_trade_hashes = {} # Evitar duplicados: wallet -> last_hash
+        self.last_trade_hashes = {}
 
     def _fetch_trades(self, wallet: str):
-        """
-        Consulta los últimos trades de un wallet via Polymarket Data API.
-        """
         url = f"https://data-api.polymarket.com/activity?user={wallet}&limit=5&offset=0&sortBy=TIMESTAMP&sortDirection=DESC"
         try:
             resp = requests.get(url, timeout=10)
@@ -26,9 +25,9 @@ class WalletTracker:
 
     def stream(self, callback: Callable[[Dict[str, Any]], None]):
         """
-        Loop de alta frecuencia para detectar trades nuevos.
+        Loop de alta frecuencia (Estilo OctoBot Fallback).
         """
-        logger.info("Starting wallet tracker with High-Frequency Polling.")
+        logger.info("Starting High-Frequency Polling Tracker (1.0s).")
         self.running = True
         
         while self.running:
@@ -37,23 +36,19 @@ class WalletTracker:
                 if not trades:
                     continue
                 
-                # Solo procesamos trades (tipo 'trade')
                 for trade in trades:
                     if trade.get("type") != "trade":
                         continue
                     
                     trade_hash = trade.get("transactionHash")
                     
-                    # Si es un trade nuevo para este wallet
                     if self.last_trade_hashes.get(wallet) != trade_hash:
-                        # Si es la primera vez que vemos este wallet, solo guardamos el hash (no copiamos pasado)
                         if wallet not in self.last_trade_hashes:
                             self.last_trade_hashes[wallet] = trade_hash
-                            logger.info(f"Initialized tracking for {wallet}. Last trade: {trade_hash}")
                             continue
 
                         self.last_trade_hashes[wallet] = trade_hash
-                        logger.info(f"⚡ NEW TRADE DETECTED from {wallet}")
+                        logger.info(f"⚡ NEW TRADE from {wallet}")
 
                         event = {
                             "type": "trade",
@@ -68,5 +63,4 @@ class WalletTracker:
                         }
                         callback(event)
             
-            # Pausa muy corta para no saturar pero ser rápido (1.5 segundos)
-            time.sleep(1.5)
+            time.sleep(1.0)

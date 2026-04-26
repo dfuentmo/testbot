@@ -22,6 +22,8 @@ class State:
         self.dry_run = settings.dry_run
         self.min_trade_size = settings.min_trade_size
         self.new_only = settings.new_only
+        self.min_price = 0.05
+        self.max_price = 0.95
         
         self.load()
 
@@ -43,6 +45,8 @@ class State:
                     self.dry_run = data.get("dry_run", self.dry_run)
                     self.min_trade_size = data.get("min_trade_size", self.min_trade_size)
                     self.new_only = data.get("new_only", self.new_only)
+                    self.min_price = data.get("min_price", 0.05)
+                    self.max_price = data.get("max_price", 0.95)
                 logger.info("Local state loaded successfully.")
             except Exception as e:
                 logger.error(f"Error loading state: {e}")
@@ -61,7 +65,9 @@ class State:
                     "autopilot_enabled": self.autopilot_enabled,
                     "dry_run": self.dry_run,
                     "min_trade_size": self.min_trade_size,
-                    "new_only": self.new_only
+                    "new_only": self.new_only,
+                    "min_price": self.min_price,
+                    "max_price": self.max_price
                 }, f, indent=4)
         except Exception as e:
             logger.error(f"Error saving state: {e}")

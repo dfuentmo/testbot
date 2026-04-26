@@ -2,6 +2,6 @@ fastapi
 uvicorn
 requests
 websockets
-py-clob-client
+py-clob-client==0.34.6
 python-dotenv
 pydantic

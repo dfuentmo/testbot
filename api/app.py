@@ -39,7 +39,9 @@ def status():
         "autopilot_enabled": state.autopilot_enabled,
         "dry_run": state.dry_run,
         "min_trade_size": state.min_trade_size,
-        "new_only": state.new_only
+        "new_only": state.new_only,
+        "min_price": state.min_price,
+        "max_price": state.max_price
     }
 
 class SettingsUpdate(BaseModel):
@@ -49,6 +51,8 @@ class SettingsUpdate(BaseModel):
     dry_run: bool = None
     min_trade_size: float = None
     new_only: bool = None
+    min_price: float = None
+    max_price: float = None
 
 @app.post("/settings")
 def update_settings(updates: SettingsUpdate):
@@ -64,6 +68,10 @@ def update_settings(updates: SettingsUpdate):
         state.min_trade_size = updates.min_trade_size
     if updates.new_only is not None:
         state.new_only = updates.new_only
+    if updates.min_price is not None:
+        state.min_price = updates.min_price
+    if updates.max_price is not None:
+        state.max_price = updates.max_price
     
     state.save()
     return {"status": "ok"}
