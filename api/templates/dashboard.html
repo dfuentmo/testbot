@@ -257,6 +257,30 @@
                 alert('Failed to apply strategy: ' + e.message);
             }
         }
+
+        async function checkResolutions() {
+            try {
+                const r = await fetch('/check-resolutions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const result = await r.json();
+                
+                if (result.status === 'ok') {
+                    const message = `✓ Resolutions Checked\n\n` +
+                        `Resolved Positions: ${result.resolved_positions}\n` +
+                        `Balance Change: $${result.balance_change >= 0 ? '+' : ''}${result.balance_change.toFixed(2)}\n` +
+                        `New Balance: $${result.final_balance.toFixed(2)}\n` +
+                        `Remaining Positions: ${result.remaining_positions}`;
+                    alert(message);
+                    load();
+                } else {
+                    alert(`Error: ${result.message}`);
+                }
+            } catch (e) {
+                alert('Failed to check resolutions: ' + e.message);
+            }
+        }
         async function saveSettings() {
             const stake = parseFloat(document.getElementById('set-stake').value) / 100.0;
             const slippage = parseFloat(document.getElementById('set-slippage').value) / 100.0;
@@ -494,6 +518,7 @@
                         <div style="display:flex; flex-direction:column; gap:0.5rem; margin-top:0.5rem;">
                             <button class="btn" onclick="makeDeposit()">+ Deposit</button>
                             <button class="btn btn-danger" onclick="resetSystem()" style="font-size:0.75rem;">Reset System</button>
+                            <button class="btn" onclick="checkResolutions()" style="background: var(--warning); font-size:0.75rem;">Check Resolutions</button>
                         </div>
                     </div>
                     <h3 style="margin-top: 1rem">Total PnL</h3>

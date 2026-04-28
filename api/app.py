@@ -8,7 +8,7 @@ import logging
 
 # We import the instances from bot main instead of re-instantiating them
 # so we can share memory of what the bot is actually doing
-from bot.main import state, portfolio, tracker, start_bot_loop
+from bot.main import state, portfolio, tracker, start_bot_loop, resolver
 
 app = FastAPI(title="Polymarket CopyTrade Bot Dashboard")
 
@@ -201,6 +201,41 @@ def apply_strategy(strategy_name: str):
         "message": f"Strategy '{strategy_name}' applied successfully",
         "strategy": strategy
     }
+
+@app.post("/check-resolutions")
+def check_resolutions():
+    """
+    Check if any open positions have been resolved and update the balance accordingly.
+    Returns the results of the resolution check.
+    """
+    try:
+        initial_positions = len(state.positions)
+        initial_balance = state.balance
+        
+        # Check for resolved markets
+        resolver.check_resolutions()
+        
+        # Calculate the changes
+        final_positions = len(state.positions)
+        final_balance = state.balance
+        balance_change = final_balance - initial_balance
+        resolved_count = initial_positions - final_positions
+        
+        return {
+            "status": "ok",
+            "resolved_positions": resolved_count,
+            "initial_balance": round(initial_balance, 2),
+            "final_balance": round(final_balance, 2),
+            "balance_change": round(balance_change, 2),
+            "remaining_positions": final_positions,
+            "message": f"Resolved {resolved_count} position(s). Balance: ${round(initial_balance, 2)} → ${round(final_balance, 2)}"
+        }
+    except Exception as e:
+        logging.error(f"Error checking resolutions: {e}")
+        return {
+            "status": "error",
+            "message": f"Error checking resolutions: {str(e)}"
+        }
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard():
