@@ -29,14 +29,14 @@ class Strategy:
         if whale_size < 1.0:
             return None
 
-        # Validación temporal: rechazar trades muy viejos (>5 minutos)
-        # Importante para mercados diarios de clima donde la liquidez se evapora
+        # Validación temporal: rechazar trades muy viejos (>15 minutos)
+        # Para mercados de clima, la liquidez puede durar más tiempo
         event_timestamp = event.get("timestamp", time.time())
         current_time = time.time()
         trade_age_seconds = current_time - event_timestamp
         
-        if trade_age_seconds > 300:  # 5 minutos = 300 segundos
-            logger.warning(f"[STRATEGY] Rejecting stale trade - age: {trade_age_seconds:.0f}s > 300s (liquidity likely gone)")
+        if trade_age_seconds > 900:  # 15 minutos = 900 segundos
+            logger.warning(f"[STRATEGY] Rejecting stale trade - age: {trade_age_seconds:.0f}s > 900s (liquidity likely gone)")
             return None
 
         # Copia proporcional

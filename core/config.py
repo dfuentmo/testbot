@@ -25,7 +25,7 @@ class Config(BaseModel):
     dry_run: bool = os.getenv("DRY_RUN", "true").lower() == "true"
     autopilot_enabled: bool = os.getenv("AUTOPILOT", "false").lower() == "true"
     slippage_tolerance: float = float(os.getenv("SLIPPAGE_TOLERANCE", "0.05"))
-    min_trade_size: float = float(os.getenv("MIN_TRADE_SIZE", "10.0"))
+    min_trade_size: float = float(os.getenv("MIN_TRADE_SIZE", "1.0"))
     new_only: bool = os.getenv("NEW_ONLY", "true").lower() == "true"
     
     # Notifications
